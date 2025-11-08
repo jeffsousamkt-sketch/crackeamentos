@@ -85,7 +85,7 @@ try {
     } else {
       console.log('✅ Conectado ao banco de dados SQLite');
       console.log('📁 Caminho do banco:', dbPath);
-      // Criar tabela se não existir
+      // Criar tabelas se não existirem
       db.run(`CREATE TABLE IF NOT EXISTS conversions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sub_id1 TEXT,
@@ -95,12 +95,33 @@ try {
         status TEXT,
         payout REAL,
         date TEXT,
+        notification_type TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`, (err) => {
         if (err) {
-          console.error('❌ Erro ao criar tabela:', err.message);
+          console.error('❌ Erro ao criar tabela conversions:', err.message);
         } else {
           console.log('✅ Tabela conversions criada/verificada');
+        }
+      });
+
+      // Criar tabela de estatísticas por campanha
+      db.run(`CREATE TABLE IF NOT EXISTS campaign_stats (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        campanha TEXT,
+        conjunto TEXT,
+        anuncio TEXT,
+        leads INTEGER DEFAULT 0,
+        conversoes INTEGER DEFAULT 0,
+        trash INTEGER DEFAULT 0,
+        cancel INTEGER DEFAULT 0,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(campanha, conjunto, anuncio)
+      )`, (err) => {
+        if (err) {
+          console.error('❌ Erro ao criar tabela campaign_stats:', err.message);
+        } else {
+          console.log('✅ Tabela campaign_stats criada/verificada');
         }
       });
     }
@@ -112,19 +133,54 @@ try {
   db = null;
 }
 
-// Rota para receber postback da LeadRock
-app.get('/postback', (req, res) => {
+// Função auxiliar para atualizar estatísticas por campanha
+function updateCampaignStats(campanha, conjunto, anuncio, tipo) {
+  if (!db || !campanha) return;
+
+  const campanhaValue = campanha || 'N/A';
+  const conjuntoValue = conjunto || 'N/A';
+  const anuncioValue = anuncio || 'N/A';
+
+  // Determinar qual campo incrementar baseado no tipo
+  let fieldToUpdate = 'leads';
+  if (tipo === 'conversao' || tipo === 'approval') fieldToUpdate = 'conversoes';
+  else if (tipo === 'trash') fieldToUpdate = 'trash';
+  else if (tipo === 'cancel' || tipo === 'rejection') fieldToUpdate = 'cancel';
+  else fieldToUpdate = 'leads'; // padrão é lead
+
+  // Usar INSERT OR REPLACE para criar ou atualizar
+  const sql = `INSERT INTO campaign_stats (campanha, conjunto, anuncio, ${fieldToUpdate}, updated_at)
+               VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+               ON CONFLICT(campanha, conjunto, anuncio) 
+               DO UPDATE SET ${fieldToUpdate} = ${fieldToUpdate} + 1, updated_at = CURRENT_TIMESTAMP`;
+
+  db.run(sql, [campanhaValue, conjuntoValue, anuncioValue], (err) => {
+    if (err) {
+      console.error('❌ Erro ao atualizar estatísticas:', err.message);
+    } else {
+      console.log(`✅ Estatísticas atualizadas: ${campanhaValue} - ${tipo}`);
+    }
+  });
+}
+
+// Função auxiliar para processar postback
+function processPostback(req, res, notificationType) {
   const { sub_id1, sub_id2, sub_id3, offer_id, status, payout, date } = req.query;
 
+  const campanha = sub_id1 || null;
+  const conjunto = sub_id2 || null;
+  const anuncio = sub_id3 || null;
+
   // Log dos dados recebidos
-  console.log('\n📥 POSTBACK RECEBIDO:');
-  console.log('  - Campanha (sub_id1):', sub_id1 || 'N/A');
-  console.log('  - Conjunto (sub_id2):', sub_id2 || 'N/A');
-  console.log('  - Anúncio (sub_id3):', sub_id3 || 'N/A');
+  console.log(`\n📥 POSTBACK RECEBIDO (${notificationType.toUpperCase()}):`);
+  console.log('  - Campanha (sub_id1):', campanha || 'N/A');
+  console.log('  - Conjunto (sub_id2):', conjunto || 'N/A');
+  console.log('  - Anúncio (sub_id3):', anuncio || 'N/A');
   console.log('  - Offer ID:', offer_id || 'N/A');
   console.log('  - Status:', status || 'N/A');
   console.log('  - Payout:', payout || 'N/A');
   console.log('  - Data:', date || 'N/A');
+  console.log('  - Tipo:', notificationType);
   console.log('  - Timestamp:', new Date().toISOString());
 
   // Verificar se banco está disponível
@@ -134,19 +190,48 @@ app.get('/postback', (req, res) => {
   }
 
   // Salvar no banco de dados
-  const sql = `INSERT INTO conversions (sub_id1, sub_id2, sub_id3, offer_id, status, payout, date) 
-               VALUES (?, ?, ?, ?, ?, ?, ?)`;
+  const sql = `INSERT INTO conversions (sub_id1, sub_id2, sub_id3, offer_id, status, payout, date, notification_type) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
   
-  db.run(sql, [sub_id1 || null, sub_id2 || null, sub_id3 || null, offer_id || null, 
-               status || null, payout ? parseFloat(payout) : null, date || null], function(err) {
+  db.run(sql, [campanha, conjunto, anuncio, offer_id || null, 
+               status || null, payout ? parseFloat(payout) : null, date || null, notificationType], function(err) {
     if (err) {
       console.error('❌ Erro ao salvar no banco:', err.message);
       return res.status(500).json({ success: false, error: 'Erro ao salvar dados' });
     }
     
     console.log('✅ Dados salvos com sucesso (ID:', this.lastID + ')');
+    
+    // Atualizar estatísticas por campanha
+    updateCampaignStats(campanha, conjunto, anuncio, notificationType);
+    
     res.json({ success: true, id: this.lastID });
   });
+}
+
+// Rota genérica para postback (mantida para compatibilidade)
+app.get('/postback', (req, res) => {
+  processPostback(req, res, 'lead');
+});
+
+// Rota para notificação de Lead (objetivo alcançado)
+app.get('/postback/lead', (req, res) => {
+  processPostback(req, res, 'lead');
+});
+
+// Rota para notificação de Conversão (aprovação)
+app.get('/postback/conversao', (req, res) => {
+  processPostback(req, res, 'conversao');
+});
+
+// Rota para notificação de Trash
+app.get('/postback/trash', (req, res) => {
+  processPostback(req, res, 'trash');
+});
+
+// Rota para notificação de Cancel (rejeição)
+app.get('/postback/cancel', (req, res) => {
+  processPostback(req, res, 'cancel');
 });
 
 // Rota API para buscar conversões
@@ -162,6 +247,26 @@ app.get('/api/conversions', (req, res) => {
   db.all(sql, [], (err, rows) => {
     if (err) {
       console.error('Erro ao buscar conversões:', err.message);
+      return res.status(500).json({ error: 'Erro ao buscar dados' });
+    }
+    
+    res.json(rows);
+  });
+});
+
+// Rota API para buscar estatísticas por campanha
+app.get('/api/campaign-stats', (req, res) => {
+  // Verificar se banco está disponível
+  if (!db) {
+    console.error('❌ Banco de dados não está disponível');
+    return res.status(500).json({ error: 'Banco de dados não disponível' });
+  }
+
+  const sql = `SELECT * FROM campaign_stats ORDER BY campanha, conjunto, anuncio`;
+  
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      console.error('Erro ao buscar estatísticas:', err.message);
       return res.status(500).json({ error: 'Erro ao buscar dados' });
     }
     
