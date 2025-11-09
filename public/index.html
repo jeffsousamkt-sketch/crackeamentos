@@ -246,7 +246,7 @@
             return `<span class="px-2 py-1 rounded-full text-xs font-semibold ${color}">${status || 'N/A'}</span>`;
         }
 
-        // Função para classificar status da LeadRock
+        // Função para classificar status da LeadRock - CORRIGIDA
         function classifyStatus(status) {
             if (!status) return 'lead';
             
@@ -270,11 +270,11 @@
             }
         }
 
-        // Função para processar dados hierárquicos - VALOR SÓ PARA APROVADOS
+        // Função para processar dados hierárquicos - CORRIGIDA
         function processHierarchicalData(conversions) {
             const hierarchy = {};
             let stats = {
-                leads: 0,
+                leads: conversions.length, // ✅ CORREÇÃO: LEADS = TOTAL DE REGISTROS
                 approved: 0,
                 cancel: 0,
                 trash: 0,
@@ -293,8 +293,12 @@
                 // ✅ SÓ ADICIONA VALOR SE FOR STATUS APROVADO
                 const validPayout = (statusType === 'approved') ? payout : 0;
 
-                // Atualizar estatísticas gerais
-                stats[statusType]++;
+                // Atualizar estatísticas por tipo de status (APROVADOS, CANCEL, TRASH)
+                if (statusType === 'approved') stats.approved++;
+                else if (statusType === 'cancel') stats.cancel++;
+                else if (statusType === 'trash') stats.trash++;
+                // ✅ CORREÇÃO: LEADS já é o total, não precisa incrementar aqui
+
                 stats.totalPayout += validPayout; // ✅ Só soma valor se for aprovado
 
                 // Inicializar campanha se não existir
@@ -333,7 +337,12 @@
                     };
                 }
 
-                // Atualizar contagens por status
+                // ✅ CORREÇÃO: Para hierarquia, LEADS = total por item
+                hierarchy[campanha].leads++;
+                hierarchy[campanha].adsets[conjunto].leads++;
+                hierarchy[campanha].adsets[conjunto].ads[anuncio].leads++;
+
+                // Atualizar contagens por status específico
                 hierarchy[campanha][statusType]++;
                 hierarchy[campanha].adsets[conjunto][statusType]++;
                 hierarchy[campanha].adsets[conjunto].ads[anuncio][statusType]++;
