@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - LeadRock Postback Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @keyframes slideDown {
             from {
@@ -21,6 +22,26 @@
         }
         .pulse-green {
             animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .stats-card {
+            transition: transform 0.2s ease-in-out;
+        }
+        .stats-card:hover {
+            transform: translateY(-2px);
         }
     </style>
 </head>
@@ -43,19 +64,107 @@
             </div>
         </div>
 
+        <!-- Filtros -->
+        <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <div class="flex flex-col md:flex-row gap-4">
+                <!-- Filtro por data -->
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Período</label>
+                    <select id="dateFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="all">Todos</option>
+                        <option value="today">Hoje</option>
+                        <option value="yesterday">Ontem</option>
+                        <option value="week">Esta semana</option>
+                        <option value="month">Este mês</option>
+                    </select>
+                </div>
+                
+                <!-- Filtro por campanha -->
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Campanha</label>
+                    <select id="campaignFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="all">Todas as campanhas</option>
+                    </select>
+                </div>
+                
+                <!-- Filtro por status -->
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select id="statusFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="all">Todos os status</option>
+                        <option value="FTD">FTD</option>
+                        <option value="DEPOSIT">Depósito</option>
+                        <option value="PENDING">Pendente</option>
+                        <option value="REJECTED">Rejeitado</option>
+                    </select>
+                </div>
+                
+                <!-- Busca -->
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
+                    <input type="text" id="searchInput" placeholder="Pesquisar..." 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+        </div>
+
         <!-- Estatísticas -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-lg shadow-md p-6 stats-card">
                 <div class="text-gray-600 text-sm font-medium mb-1">Total de Conversões</div>
                 <div class="text-3xl font-bold text-gray-800" id="totalConversions">0</div>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-lg shadow-md p-6 stats-card">
                 <div class="text-gray-600 text-sm font-medium mb-1">Valor Total</div>
                 <div class="text-3xl font-bold text-green-600" id="totalPayout">$0.00</div>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-lg shadow-md p-6 stats-card">
                 <div class="text-gray-600 text-sm font-medium mb-1">Última Atualização</div>
                 <div class="text-lg font-semibold text-gray-800" id="lastUpdate">--:--:--</div>
+            </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Gráfico de conversões por hora -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Conversões por Hora</h3>
+                <canvas id="conversionsChart" height="250"></canvas>
+            </div>
+            
+            <!-- Gráfico de distribuição por status -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Distribuição por Status</h3>
+                <canvas id="statusChart" height="250"></canvas>
+            </div>
+        </div>
+
+        <!-- Estatísticas por Campanha -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">Estatísticas por Campanha</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campanha</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leads</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conversões</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lixo</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cancelados</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Taxa de Conversão</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="campaignStatsTable" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                                Carregando estatísticas...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -81,10 +190,8 @@
                         <tr>
                             <td colspan="7" class="px-6 py-8 text-center text-gray-500">
                                 <div class="flex flex-col items-center">
-                                    <svg class="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    <p>Carregando dados...</p>
+                                    <div class="loading-spinner"></div>
+                                    <p class="mt-2">Carregando dados...</p>
                                 </div>
                             </td>
                         </tr>
@@ -100,8 +207,13 @@
     </div>
 
     <script>
+        // Variáveis globais
+        let allConversions = [];
+        let allCampaignStats = [];
         let lastCount = 0;
         let isFirstLoad = true;
+        let conversionsChart = null;
+        let statusChart = null;
 
         // Função para formatar data
         function formatDate(dateString) {
@@ -115,15 +227,6 @@
             if (!dateString) return 'N/A';
             const date = new Date(dateString);
             return date.toLocaleTimeString('pt-BR');
-        }
-
-        // Função para formatar valor monetário (BRL - para estatísticas)
-        function formatCurrency(value) {
-            if (!value) return 'R$ 0,00';
-            return new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL'
-            }).format(value);
         }
 
         // Função para formatar valor monetário em dólar (USD)
@@ -143,10 +246,34 @@
                 'FTD': 'bg-green-100 text-green-800',
                 'DEPOSIT': 'bg-blue-100 text-blue-800',
                 'PENDING': 'bg-yellow-100 text-yellow-800',
-                'REJECTED': 'bg-red-100 text-red-800'
+                'REJECTED': 'bg-red-100 text-red-800',
+                'TRASH': 'bg-gray-100 text-gray-800',
+                'CANCEL': 'bg-red-100 text-red-800'
             };
             const color = badges[status] || 'bg-gray-100 text-gray-800';
             return `<span class="px-2 py-1 rounded-full text-xs font-semibold ${color}">${status || 'N/A'}</span>`;
+        }
+
+        // Função para debug dos dados
+        function debugData(data) {
+            console.log('=== DEBUG DASHBOARD ===');
+            console.log('Total de itens:', data.length);
+            if (data.length > 0) {
+                console.log('Primeiro item completo:', data[0]);
+                console.log('Campos disponíveis:', Object.keys(data[0]));
+                
+                // Verificar campos específicos
+                console.log('sub_id1:', data[0].sub_id1);
+                console.log('sub_id3:', data[0].sub_id3);
+                console.log('sub_id4:', data[0].sub_id4);
+                console.log('sub_id5:', data[0].sub_id5);
+                console.log('campanha:', data[0].campanha);
+                console.log('conjunto:', data[0].conjunto);
+                console.log('anuncio:', data[0].anuncio);
+                console.log('status:', data[0].status);
+                console.log('payout:', data[0].payout);
+            }
+            console.log('=== FIM DEBUG ===');
         }
 
         // Função para carregar conversões
@@ -154,6 +281,11 @@
             try {
                 const response = await fetch('/api/conversions');
                 const data = await response.json();
+                
+                // DEBUG
+                debugData(data);
+
+                allConversions = data;
 
                 // Verificar se há novos dados
                 if (!isFirstLoad && data.length > lastCount) {
@@ -162,11 +294,11 @@
                 lastCount = data.length;
                 isFirstLoad = false;
 
-                // Atualizar estatísticas
-                updateStatistics(data);
-
-                // Atualizar tabela
-                updateTable(data);
+                // Atualizar filtros
+                updateFilters(data);
+                
+                // Aplicar filtros atuais
+                applyFilters();
 
                 // Atualizar timestamp
                 document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('pt-BR');
@@ -177,7 +309,7 @@
 
         // Função para atualizar estatísticas
         function updateStatistics(data) {
-            document.getElementById('totalConversions').textContent = data.length;
+            document.getElementById('totalConversions').textContent = data.length.toLocaleString('pt-BR');
             
             const totalPayout = data.reduce((sum, item) => {
                 return sum + (parseFloat(item.payout) || 0);
@@ -186,7 +318,7 @@
             document.getElementById('totalPayout').textContent = formatCurrencyUSD(totalPayout);
         }
 
-        // Função para atualizar tabela
+        // Função para atualizar tabela CORRIGIDA
         function updateTable(data) {
             const tbody = document.getElementById('conversionsTable');
             
@@ -207,23 +339,30 @@
             }
 
             tbody.innerHTML = data.map(item => {
-                // Mapear corretamente: sub_id3 = campanha, sub_id4 = conjunto, sub_id5 = anúncio
-                // Prioridade: campos mapeados (campanha/conjunto/anuncio) > sub_ids originais
-                const campanha = item.campanha || item.sub_id3 || item.sub_id6 || 'N/A';
-                const conjunto = item.conjunto || item.sub_id4 || 'N/A';
-                const anuncio = item.anuncio || item.sub_id5 || 'N/A';
+                // Mapeamento CORRETO - Verificar todos os campos possíveis
+                let campanha = item.campanha || item.sub_id3 || 'N/A';
+                let conjunto = item.conjunto || item.sub_id4 || 'N/A';
+                let anuncio = item.anuncio || item.sub_id5 || 'N/A';
                 
+                // Remover placeholders se existirem
+                if (campanha.includes('[[')) campanha = 'N/A';
+                if (conjunto.includes('[[')) conjunto = 'N/A';
+                if (anuncio.includes('[[')) anuncio = 'N/A';
+                
+                const status = item.status || 'N/A';
+                const payout = item.payout || item.price || 0;
+
                 return `
                 <tr class="hover:bg-gray-50 transition-colors">
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${campanha}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${conjunto}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${anuncio}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">${getStatusBadge(item.status)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">${formatCurrencyUSD(item.payout)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${getStatusBadge(status)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">${formatCurrencyUSD(payout)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatDate(item.date || item.created_at)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatTime(item.created_at)}</td>
                 </tr>
-            `;
+                `;
             }).join('');
         }
 
@@ -239,12 +378,282 @@
             }, 5000);
         }
 
-        // Carregar dados inicialmente
-        loadConversions();
+        // Função para carregar estatísticas de campanha
+        async function loadCampaignStats() {
+            try {
+                const response = await fetch('/api/campaign-stats');
+                allCampaignStats = await response.json();
+                updateCampaignStatsTable(allCampaignStats);
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+            }
+        }
 
-        // Atualizar a cada 10 segundos
-        setInterval(loadConversions, 10000);
+        // Função para atualizar tabela de estatísticas
+        function updateCampaignStatsTable(stats) {
+            const tbody = document.getElementById('campaignStatsTable');
+            
+            if (stats.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                            Nenhuma estatística disponível
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = stats.map(item => {
+                const totalLeads = (item.leads || 0) + (item.conversoes || 0) + (item.trash || 0) + (item.cancel || 0);
+                const conversionRate = totalLeads > 0 ? ((item.conversoes || 0) / totalLeads * 100).toFixed(1) : 0;
+                
+                return `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">${item.campanha || 'N/A'}</td>
+                        <td class="px-6 py-4 text-sm text-gray-900">${item.leads || 0}</td>
+                        <td class="px-6 py-4 text-sm text-gray-900">${item.conversoes || 0}</td>
+                        <td class="px-6 py-4 text-sm text-gray-900">${item.trash || 0}</td>
+                        <td class="px-6 py-4 text-sm text-gray-900">${item.cancel || 0}</td>
+                        <td class="px-6 py-4 text-sm font-semibold ${conversionRate >= 10 ? 'text-green-600' : conversionRate >= 5 ? 'text-yellow-600' : 'text-red-600'}">
+                            ${conversionRate}%
+                        </td>
+                        <td class="px-6 py-4 text-sm font-semibold text-green-600">${formatCurrencyUSD(0)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Função para inicializar gráficos
+        function initCharts() {
+            const conversionsCtx = document.getElementById('conversionsChart').getContext('2d');
+            const statusCtx = document.getElementById('statusChart').getContext('2d');
+            
+            // Gráfico de conversões por hora
+            conversionsChart = new Chart(conversionsCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Conversões por Hora',
+                        data: [],
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            // Gráfico de distribuição por status
+            statusChart = new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['FTD', 'DEPOSIT', 'PENDING', 'REJECTED', 'OUTROS'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: [
+                            'rgb(34, 197, 94)',
+                            'rgb(59, 130, 246)',
+                            'rgb(234, 179, 8)',
+                            'rgb(239, 68, 68)',
+                            'rgb(156, 163, 175)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Função para atualizar gráficos
+        function updateCharts(conversions) {
+            if (!conversionsChart || !statusChart) return;
+            
+            // Atualizar gráfico de status
+            const statusCount = {
+                'FTD': 0, 'DEPOSIT': 0, 'PENDING': 0, 'REJECTED': 0, 'OUTROS': 0
+            };
+            
+            conversions.forEach(item => {
+                const status = item.status || 'PENDING';
+                if (statusCount.hasOwnProperty(status)) {
+                    statusCount[status]++;
+                } else {
+                    statusCount['OUTROS']++;
+                }
+            });
+            
+            statusChart.data.datasets[0].data = [
+                statusCount['FTD'],
+                statusCount['DEPOSIT'],
+                statusCount['PENDING'],
+                statusCount['REJECTED'],
+                statusCount['OUTROS']
+            ];
+            statusChart.update();
+            
+            // Atualizar gráfico de conversões por hora (últimas 12 horas)
+            const last12Hours = getLast12HoursData(conversions);
+            conversionsChart.data.labels = last12Hours.labels;
+            conversionsChart.data.datasets[0].data = last12Hours.data;
+            conversionsChart.update();
+        }
+
+        // Função para obter dados das últimas 12 horas
+        function getLast12HoursData(conversions) {
+            const now = new Date();
+            const hours = [];
+            const data = [];
+            
+            for (let i = 11; i >= 0; i--) {
+                const hour = new Date(now);
+                hour.setHours(now.getHours() - i);
+                hour.setMinutes(0, 0, 0);
+                
+                const hourStart = new Date(hour);
+                const hourEnd = new Date(hour);
+                hourEnd.setHours(hour.getHours() + 1);
+                
+                const hourConversions = conversions.filter(item => {
+                    const itemDate = new Date(item.created_at);
+                    return itemDate >= hourStart && itemDate < hourEnd;
+                });
+                
+                hours.push(hour.getHours().toString().padStart(2, '0') + 'h');
+                data.push(hourConversions.length);
+            }
+            
+            return { labels: hours, data: data };
+        }
+
+        // Função para aplicar filtros
+        function applyFilters() {
+            let filtered = [...allConversions];
+            
+            // Filtro de data
+            const dateFilter = document.getElementById('dateFilter').value;
+            if (dateFilter !== 'all') {
+                filtered = filterByDate(filtered, dateFilter);
+            }
+            
+            // Filtro de campanha
+            const campaignFilter = document.getElementById('campaignFilter').value;
+            if (campaignFilter !== 'all') {
+                filtered = filtered.filter(item => {
+                    const campanha = item.campanha || item.sub_id3;
+                    return campanha === campaignFilter;
+                });
+            }
+            
+            // Filtro de status
+            const statusFilter = document.getElementById('statusFilter').value;
+            if (statusFilter !== 'all') {
+                filtered = filtered.filter(item => item.status === statusFilter);
+            }
+            
+            // Filtro de busca
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            if (searchTerm) {
+                filtered = filtered.filter(item => {
+                    const campanha = (item.campanha || item.sub_id3 || '').toLowerCase();
+                    const conjunto = (item.conjunto || item.sub_id4 || '').toLowerCase();
+                    const anuncio = (item.anuncio || item.sub_id5 || '').toLowerCase();
+                    const status = (item.status || '').toLowerCase();
+                    
+                    return campanha.includes(searchTerm) ||
+                           conjunto.includes(searchTerm) ||
+                           anuncio.includes(searchTerm) ||
+                           status.includes(searchTerm);
+                });
+            }
+            
+            updateTable(filtered);
+            updateStatistics(filtered);
+            updateCharts(filtered);
+        }
+
+        // Função para filtrar por data
+        function filterByDate(data, period) {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            
+            switch (period) {
+                case 'today':
+                    return data.filter(item => new Date(item.created_at) >= today);
+                case 'yesterday':
+                    const yesterday = new Date(today);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    return data.filter(item => {
+                        const itemDate = new Date(item.created_at);
+                        return itemDate >= yesterday && itemDate < today;
+                    });
+                case 'week':
+                    const weekAgo = new Date(today);
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    return data.filter(item => new Date(item.created_at) >= weekAgo);
+                case 'month':
+                    const monthAgo = new Date(today);
+                    monthAgo.setMonth(monthAgo.getMonth() - 1);
+                    return data.filter(item => new Date(item.created_at) >= monthAgo);
+                default:
+                    return data;
+            }
+        }
+
+        // Função para atualizar opções dos filtros
+        function updateFilters(conversions) {
+            const campaignSelect = document.getElementById('campaignFilter');
+            const campaigns = [...new Set(conversions.map(item => {
+                const campanha = item.campanha || item.sub_id3;
+                return campanha && !campanha.includes('[[') ? campanha : null;
+            }).filter(Boolean))];
+            
+            // Manter a seleção atual
+            const currentSelection = campaignSelect.value;
+            
+            // Atualizar opções
+            campaignSelect.innerHTML = '<option value="all">Todas as campanhas</option>';
+            campaigns.forEach(campaign => {
+                campaignSelect.innerHTML += `<option value="${campaign}">${campaign}</option>`;
+            });
+            
+            // Restaurar seleção se ainda existir
+            if (campaigns.includes(currentSelection)) {
+                campaignSelect.value = currentSelection;
+            }
+        }
+
+        // Inicializar tudo quando a página carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            loadConversions();
+            loadCampaignStats();
+            
+            // Adicionar event listeners aos filtros
+            document.getElementById('dateFilter').addEventListener('change', applyFilters);
+            document.getElementById('campaignFilter').addEventListener('change', applyFilters);
+            document.getElementById('statusFilter').addEventListener('change', applyFilters);
+            document.getElementById('searchInput').addEventListener('input', applyFilters);
+            
+            // Atualizar dados a cada 10 segundos
+            setInterval(loadConversions, 10000);
+            setInterval(loadCampaignStats, 30000);
+        });
     </script>
 </body>
 </html>
-
