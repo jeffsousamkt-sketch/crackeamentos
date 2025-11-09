@@ -12,6 +12,17 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// Middleware para log de TODAS as requisições (diagnóstico)
+app.use((req, res, next) => {
+  if (req.path.includes('/postback')) {
+    console.log(`\n🔔 REQUISIÇÃO RECEBIDA: ${req.method} ${req.path}`);
+    console.log('  - Query params:', JSON.stringify(req.query));
+    console.log('  - IP:', req.ip || req.connection.remoteAddress);
+    console.log('  - User-Agent:', req.get('user-agent') || 'N/A');
+  }
+  next();
+});
+
 // Criar pasta database se não existir
 const databaseDir = path.join(__dirname, 'database');
 console.log('📁 Diretório do projeto:', __dirname);
@@ -221,8 +232,8 @@ function processPostback(req, res, notificationType) {
   
   // IDs (se disponíveis)
   const ad_id = allParams.sub2 || allParams.ad_id || null;
-  const adset_id = allParams.adset_id || null;
-  const campaign_id = allParams.campaign_id || null;
+  const adset_id = allParams.adset_id || allParams.sub2 || null;
+  const campaign_id = allParams.campaign_id || allParams.sub3 || null;
   
   // Mapear para os campos do sistema
   const campanha = campaign_name || null;
