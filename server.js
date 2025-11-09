@@ -387,6 +387,7 @@ app.get('/api/conversions', (req, res) => {
     return res.status(500).json({ error: 'Banco de dados não disponível' });
   }
 
+  // Buscar conversões e preencher campos campanha/conjunto/anuncio se estiverem vazios
   const sql = `SELECT * FROM conversions ORDER BY created_at DESC`;
   
   db.all(sql, [], (err, rows) => {
@@ -395,7 +396,24 @@ app.get('/api/conversions', (req, res) => {
       return res.status(500).json({ error: 'Erro ao buscar dados' });
     }
     
-    res.json(rows);
+    // Preencher campos vazios com valores dos sub_ids (para compatibilidade com dados antigos)
+    const rowsWithDefaults = rows.map(row => {
+      // Se campanha está vazia, usar sub_id3 (campaign.name) ou sub_id6
+      if (!row.campanha && (row.sub_id3 || row.sub_id6)) {
+        row.campanha = row.sub_id3 || row.sub_id6;
+      }
+      // Se conjunto está vazio, usar sub_id4 (adset.name)
+      if (!row.conjunto && row.sub_id4) {
+        row.conjunto = row.sub_id4;
+      }
+      // Se anuncio está vazio, usar sub_id5 (ad.name)
+      if (!row.anuncio && row.sub_id5) {
+        row.anuncio = row.sub_id5;
+      }
+      return row;
+    });
+    
+    res.json(rowsWithDefaults);
   });
 });
 
