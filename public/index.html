@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - LeadRock Postback Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @keyframes slideDown {
             from {
@@ -37,21 +36,44 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .stats-card {
-            transition: transform 0.2s ease-in-out;
+        
+        /* Tree view styles */
+        .tree-item {
+            transition: all 0.2s ease;
         }
-        .stats-card:hover {
-            transform: translateY(-2px);
+        .tree-children {
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .toggle-icon {
+            transition: transform 0.2s ease;
+        }
+        .toggle-icon.rotated {
+            transform: rotate(90deg);
+        }
+        .campaign-row {
+            background-color: #f8fafc;
+            border-left: 4px solid #3b82f6;
+        }
+        .adset-row {
+            background-color: #f1f5f9;
+            border-left: 4px solid #6366f1;
+            margin-left: 20px;
+        }
+        .ad-row {
+            background-color: #ffffff;
+            border-left: 4px solid #10b981;
+            margin-left: 40px;
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-50 min-h-screen">
     <!-- Container principal -->
     <div class="container mx-auto px-4 py-8">
         <!-- Header -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">📊 Dashboard LeadRock</h1>
-            <p class="text-gray-600">Monitoramento de conversões em tempo real</p>
+            <p class="text-gray-600">Visualização hierárquica de campanhas, conjuntos e anúncios</p>
         </div>
 
         <!-- Alerta de novo postback -->
@@ -64,139 +86,103 @@
             </div>
         </div>
 
+        <!-- Estatísticas Gerais -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="text-gray-600 text-sm font-medium mb-1">Total de Campanhas</div>
+                <div class="text-2xl font-bold text-blue-600" id="totalCampaigns">0</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="text-gray-600 text-sm font-medium mb-1">Total de Leads</div>
+                <div class="text-2xl font-bold text-green-600" id="totalLeads">0</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="text-gray-600 text-sm font-medium mb-1">Conversões</div>
+                <div class="text-2xl font-bold text-purple-600" id="totalConversions">0</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="text-gray-600 text-sm font-medium mb-1">Valor Total</div>
+                <div class="text-2xl font-bold text-green-600" id="totalPayout">$0.00</div>
+            </div>
+        </div>
+
         <!-- Filtros -->
         <div class="bg-white rounded-lg shadow-md p-4 mb-6">
-            <div class="flex flex-col md:flex-row gap-4">
-                <!-- Filtro por data -->
+            <div class="flex flex-col md:flex-row gap-4 items-center">
                 <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Período</label>
-                    <select id="dateFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="all">Todos</option>
-                        <option value="today">Hoje</option>
-                        <option value="yesterday">Ontem</option>
-                        <option value="week">Esta semana</option>
-                        <option value="month">Este mês</option>
-                    </select>
-                </div>
-                
-                <!-- Filtro por campanha -->
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Campanha</label>
-                    <select id="campaignFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="all">Todas as campanhas</option>
-                    </select>
-                </div>
-                
-                <!-- Filtro por status -->
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select id="statusFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="all">Todos os status</option>
-                        <option value="FTD">FTD</option>
-                        <option value="DEPOSIT">Depósito</option>
-                        <option value="PENDING">Pendente</option>
-                        <option value="REJECTED">Rejeitado</option>
-                    </select>
-                </div>
-                
-                <!-- Busca -->
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
-                    <input type="text" id="searchInput" placeholder="Pesquisar..." 
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Buscar Campanha/Conjunto/Anúncio</label>
+                    <input type="text" id="searchInput" placeholder="Digite para buscar..." 
                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
+                <div class="flex gap-2">
+                    <button id="expandAll" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
+                        Expandir Tudo
+                    </button>
+                    <button id="collapseAll" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">
+                        Recolher Tudo
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- Estatísticas -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="bg-white rounded-lg shadow-md p-6 stats-card">
-                <div class="text-gray-600 text-sm font-medium mb-1">Total de Conversões</div>
-                <div class="text-3xl font-bold text-gray-800" id="totalConversions">0</div>
-            </div>
-            <div class="bg-white rounded-lg shadow-md p-6 stats-card">
-                <div class="text-gray-600 text-sm font-medium mb-1">Valor Total</div>
-                <div class="text-3xl font-bold text-green-600" id="totalPayout">$0.00</div>
-            </div>
-            <div class="bg-white rounded-lg shadow-md p-6 stats-card">
-                <div class="text-gray-600 text-sm font-medium mb-1">Última Atualização</div>
-                <div class="text-lg font-semibold text-gray-800" id="lastUpdate">--:--:--</div>
-            </div>
-        </div>
-
-        <!-- Gráficos -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <!-- Gráfico de conversões por hora -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Conversões por Hora</h3>
-                <canvas id="conversionsChart" height="250"></canvas>
-            </div>
-            
-            <!-- Gráfico de distribuição por status -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Distribuição por Status</h3>
-                <canvas id="statusChart" height="250"></canvas>
-            </div>
-        </div>
-
-        <!-- Estatísticas por Campanha -->
+        <!-- Tabela Hierárquica -->
         <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
             <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="text-xl font-semibold text-gray-800">Estatísticas por Campanha</h2>
+                <h2 class="text-xl font-semibold text-gray-800">Visão Hierárquica por Campanha</h2>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campanha</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campanha / Conjunto / Anúncio</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leads</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conversões</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lixo</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cancelados</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Taxa de Conversão</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Taxa</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor Total</th>
-                        </tr>
-                    </thead>
-                    <tbody id="campaignStatsTable" class="bg-white divide-y divide-gray-200">
-                        <tr>
-                            <td colspan="7" class="px-6 py-8 text-center text-gray-500">
-                                Carregando estatísticas...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Tabela de conversões -->
-        <div class="bg-white rounded-lg shadow-md overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="text-xl font-semibold text-gray-800">Conversões</h2>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campanha</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conjunto</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Anúncio</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora</th>
                         </tr>
                     </thead>
-                    <tbody id="conversionsTable" class="bg-white divide-y divide-gray-200">
+                    <tbody id="hierarchicalTable" class="bg-white divide-y divide-gray-200">
                         <tr>
-                            <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                            <td colspan="6" class="px-6 py-8 text-center text-gray-500">
                                 <div class="flex flex-col items-center">
                                     <div class="loading-spinner"></div>
-                                    <p class="mt-2">Carregando dados...</p>
+                                    <p class="mt-2">Carregando dados hierárquicos...</p>
                                 </div>
                             </td>
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Tabela de Conversões Detalhadas -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-xl font-semibold text-gray-800">Conversões Detalhadas</h2>
+                <button id="toggleDetails" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">
+                    Mostrar Detalhes
+                </button>
+            </div>
+            <div id="detailsSection" class="hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campanha</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conjunto</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Anúncio</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody id="conversionsTable" class="bg-white divide-y divide-gray-200">
+                            <!-- Será preenchido via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -209,27 +195,10 @@
     <script>
         // Variáveis globais
         let allConversions = [];
-        let allCampaignStats = [];
-        let lastCount = 0;
-        let isFirstLoad = true;
-        let conversionsChart = null;
-        let statusChart = null;
+        let hierarchicalData = {};
+        let expandedItems = new Set();
 
-        // Função para formatar data
-        function formatDate(dateString) {
-            if (!dateString) return 'N/A';
-            const date = new Date(dateString);
-            return date.toLocaleDateString('pt-BR');
-        }
-
-        // Função para formatar hora
-        function formatTime(dateString) {
-            if (!dateString) return 'N/A';
-            const date = new Date(dateString);
-            return date.toLocaleTimeString('pt-BR');
-        }
-
-        // Função para formatar valor monetário em dólar (USD)
+        // Função para formatar valor monetário
         function formatCurrencyUSD(value) {
             if (!value || value === 0) return '$0.00';
             return new Intl.NumberFormat('en-US', {
@@ -238,6 +207,13 @@
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             }).format(value);
+        }
+
+        // Função para calcular taxa de conversão
+        function calculateConversionRate(leads, conversions) {
+            if (!leads || leads === 0) return '0%';
+            const rate = (conversions / leads) * 100;
+            return rate.toFixed(1) + '%';
         }
 
         // Função para obter badge de status
@@ -254,405 +230,310 @@
             return `<span class="px-2 py-1 rounded-full text-xs font-semibold ${color}">${status || 'N/A'}</span>`;
         }
 
-        // Função para debug dos dados
-        function debugData(data) {
-            console.log('=== DEBUG DASHBOARD ===');
-            console.log('Total de itens:', data.length);
-            if (data.length > 0) {
-                console.log('Primeiro item completo:', data[0]);
-                console.log('Campos disponíveis:', Object.keys(data[0]));
-                
-                // Verificar campos específicos
-                console.log('sub_id1:', data[0].sub_id1);
-                console.log('sub_id3:', data[0].sub_id3);
-                console.log('sub_id4:', data[0].sub_id4);
-                console.log('sub_id5:', data[0].sub_id5);
-                console.log('campanha:', data[0].campanha);
-                console.log('conjunto:', data[0].conjunto);
-                console.log('anuncio:', data[0].anuncio);
-                console.log('status:', data[0].status);
-                console.log('payout:', data[0].payout);
+        // Função para processar dados hierárquicos
+        function processHierarchicalData(conversions) {
+            const hierarchy = {};
+            let totalLeads = 0;
+            let totalConversions = 0;
+            let totalPayout = 0;
+
+            conversions.forEach(conversion => {
+                const campanha = conversion.campanha || conversion.sub_id3 || 'N/A';
+                const conjunto = conversion.conjunto || conversion.sub_id4 || 'N/A';
+                const anuncio = conversion.anuncio || conversion.sub_id5 || 'N/A';
+                const status = conversion.status || 'UNKNOWN';
+                const payout = parseFloat(conversion.payout) || 0;
+                const isConversion = ['FTD', 'DEPOSIT', 'APPROVED'].includes(status);
+                const isLead = !['TRASH', 'CANCEL', 'REJECTED'].includes(status);
+
+                // Inicializar campanha se não existir
+                if (!hierarchy[campanha]) {
+                    hierarchy[campanha] = {
+                        leads: 0,
+                        conversions: 0,
+                        payout: 0,
+                        adsets: {}
+                    };
+                }
+
+                // Inicializar conjunto se não existir
+                if (!hierarchy[campanha].adsets[conjunto]) {
+                    hierarchy[campanha].adsets[conjunto] = {
+                        leads: 0,
+                        conversions: 0,
+                        payout: 0,
+                        ads: {}
+                    };
+                }
+
+                // Inicializar anúncio se não existir
+                if (!hierarchy[campanha].adsets[conjunto].ads[anuncio]) {
+                    hierarchy[campanha].adsets[conjunto].ads[anuncio] = {
+                        leads: 0,
+                        conversions: 0,
+                        payout: 0,
+                        status: status
+                    };
+                }
+
+                // Atualizar contagens
+                if (isLead) {
+                    hierarchy[campanha].leads++;
+                    hierarchy[campanha].adsets[conjunto].leads++;
+                    hierarchy[campanha].adsets[conjunto].ads[anuncio].leads++;
+                    totalLeads++;
+                }
+
+                if (isConversion) {
+                    hierarchy[campanha].conversions++;
+                    hierarchy[campanha].adsets[conjunto].conversions++;
+                    hierarchy[campanha].adsets[conjunto].ads[anuncio].conversions++;
+                    totalConversions++;
+                }
+
+                hierarchy[campanha].payout += payout;
+                hierarchy[campanha].adsets[conjunto].payout += payout;
+                hierarchy[campanha].adsets[conjunto].ads[anuncio].payout += payout;
+                totalPayout += payout;
+            });
+
+            return {
+                hierarchy,
+                totals: {
+                    campaigns: Object.keys(hierarchy).length,
+                    leads: totalLeads,
+                    conversions: totalConversions,
+                    payout: totalPayout
+                }
+            };
+        }
+
+        // Função para renderizar tabela hierárquica
+        function renderHierarchicalTable(data) {
+            const tbody = document.getElementById('hierarchicalTable');
+            const { hierarchy, totals } = data;
+
+            // Atualizar estatísticas gerais
+            document.getElementById('totalCampaigns').textContent = totals.campaigns;
+            document.getElementById('totalLeads').textContent = totals.leads.toLocaleString('pt-BR');
+            document.getElementById('totalConversions').textContent = totals.conversions.toLocaleString('pt-BR');
+            document.getElementById('totalPayout').textContent = formatCurrencyUSD(totals.payout);
+
+            if (Object.keys(hierarchy).length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                            Nenhuma campanha encontrada
+                        </td>
+                    </tr>
+                `;
+                return;
             }
-            console.log('=== FIM DEBUG ===');
+
+            let html = '';
+            
+            Object.keys(hierarchy).forEach(campaignName => {
+                const campaign = hierarchy[campaignName];
+                const campaignId = `campaign-${campaignName.replace(/\s+/g, '-')}`;
+                const isExpanded = expandedItems.has(campaignId);
+
+                // Linha da campanha
+                html += `
+                    <tr class="campaign-row tree-item">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <div class="flex items-center cursor-pointer" onclick="toggleItem('${campaignId}')">
+                                <svg class="toggle-icon w-4 h-4 mr-2 ${isExpanded ? 'rotated' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                                <span class="font-semibold">${campaignName}</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${campaign.leads}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${campaign.conversions}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${campaign.leads > 0 ? (campaign.conversions / campaign.leads * 100 >= 10 ? 'text-green-600' : 'text-yellow-600') : 'text-gray-600'}">
+                            ${calculateConversionRate(campaign.leads, campaign.conversions)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">${formatCurrencyUSD(campaign.payout)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">CAMPAIGN</span>
+                        </td>
+                    </tr>
+                `;
+
+                // Conjuntos (adsets) - só mostra se expandido
+                if (isExpanded) {
+                    Object.keys(campaign.adsets).forEach(adsetName => {
+                        const adset = campaign.adsets[adsetName];
+                        const adsetId = `${campaignId}-adset-${adsetName.replace(/\s+/g, '-')}`;
+                        const isAdsetExpanded = expandedItems.has(adsetId);
+
+                        html += `
+                            <tr class="adset-row tree-item">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700">
+                                    <div class="flex items-center cursor-pointer ml-4" onclick="toggleItem('${adsetId}')">
+                                        <svg class="toggle-icon w-4 h-4 mr-2 ${isAdsetExpanded ? 'rotated' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                        </svg>
+                                        <span>${adsetName}</span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${adset.leads}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${adset.conversions}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${adset.leads > 0 ? (adset.conversions / adset.leads * 100 >= 10 ? 'text-green-600' : 'text-yellow-600') : 'text-gray-600'}">
+                                    ${calculateConversionRate(adset.leads, adset.conversions)}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">${formatCurrencyUSD(adset.payout)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span class="px-2 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">ADSET</span>
+                                </td>
+                            </tr>
+                        `;
+
+                        // Anúncios - só mostra se expandido
+                        if (isAdsetExpanded) {
+                            Object.keys(adset.ads).forEach(adName => {
+                                const ad = adset.ads[adName];
+
+                                html += `
+                                    <tr class="ad-row tree-item">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 ml-8">
+                                            ${adName}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${ad.leads}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${ad.conversions}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${ad.leads > 0 ? (ad.conversions / ad.leads * 100 >= 10 ? 'text-green-600' : 'text-yellow-600') : 'text-gray-600'}">
+                                            ${calculateConversionRate(ad.leads, ad.conversions)}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">${formatCurrencyUSD(ad.payout)}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                            ${getStatusBadge(ad.status)}
+                                        </td>
+                                    </tr>
+                                `;
+                            });
+                        }
+                    });
+                }
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // Função para alternar expansão de itens
+        function toggleItem(itemId) {
+            if (expandedItems.has(itemId)) {
+                expandedItems.delete(itemId);
+            } else {
+                expandedItems.add(itemId);
+            }
+            renderHierarchicalTable(hierarchicalData);
+        }
+
+        // Função para expandir/recolher tudo
+        function expandAll() {
+            const { hierarchy } = hierarchicalData;
+            Object.keys(hierarchy).forEach(campaignName => {
+                const campaignId = `campaign-${campaignName.replace(/\s+/g, '-')}`;
+                expandedItems.add(campaignId);
+                
+                Object.keys(hierarchy[campaignName].adsets).forEach(adsetName => {
+                    const adsetId = `${campaignId}-adset-${adsetName.replace(/\s+/g, '-')}`;
+                    expandedItems.add(adsetId);
+                });
+            });
+            renderHierarchicalTable(hierarchicalData);
+        }
+
+        function collapseAll() {
+            expandedItems.clear();
+            renderHierarchicalTable(hierarchicalData);
         }
 
         // Função para carregar conversões
         async function loadConversions() {
             try {
                 const response = await fetch('/api/conversions');
-                const data = await response.json();
+                allConversions = await response.json();
                 
-                // DEBUG
-                debugData(data);
-
-                allConversions = data;
-
-                // Verificar se há novos dados
-                if (!isFirstLoad && data.length > lastCount) {
-                    showAlert();
-                }
-                lastCount = data.length;
-                isFirstLoad = false;
-
-                // Atualizar filtros
-                updateFilters(data);
+                // Processar dados hierárquicos
+                hierarchicalData = processHierarchicalData(allConversions);
                 
-                // Aplicar filtros atuais
-                applyFilters();
+                // Renderizar tabela hierárquica
+                renderHierarchicalTable(hierarchicalData);
+                
+                // Renderizar tabela detalhada
+                renderDetailedTable(allConversions);
 
-                // Atualizar timestamp
-                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('pt-BR');
             } catch (error) {
                 console.error('Erro ao carregar conversões:', error);
             }
         }
 
-        // Função para atualizar estatísticas
-        function updateStatistics(data) {
-            document.getElementById('totalConversions').textContent = data.length.toLocaleString('pt-BR');
-            
-            const totalPayout = data.reduce((sum, item) => {
-                return sum + (parseFloat(item.payout) || 0);
-            }, 0);
-            
-            document.getElementById('totalPayout').textContent = formatCurrencyUSD(totalPayout);
-        }
-
-        // Função para atualizar tabela CORRIGIDA
-        function updateTable(data) {
+        // Função para renderizar tabela detalhada
+        function renderDetailedTable(conversions) {
             const tbody = document.getElementById('conversionsTable');
             
-            if (data.length === 0) {
+            if (conversions.length === 0) {
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="7" class="px-6 py-8 text-center text-gray-500">
-                            <div class="flex flex-col items-center">
-                                <svg class="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
-                                </svg>
-                                <p>Nenhuma conversão encontrada</p>
-                            </div>
+                            Nenhuma conversão encontrada
                         </td>
                     </tr>
                 `;
                 return;
             }
 
-            tbody.innerHTML = data.map(item => {
-                // Mapeamento CORRETO - Verificar todos os campos possíveis
-                let campanha = item.campanha || item.sub_id3 || 'N/A';
-                let conjunto = item.conjunto || item.sub_id4 || 'N/A';
-                let anuncio = item.anuncio || item.sub_id5 || 'N/A';
-                
-                // Remover placeholders se existirem
-                if (campanha.includes('[[')) campanha = 'N/A';
-                if (conjunto.includes('[[')) conjunto = 'N/A';
-                if (anuncio.includes('[[')) anuncio = 'N/A';
-                
-                const status = item.status || 'N/A';
-                const payout = item.payout || item.price || 0;
+            tbody.innerHTML = conversions.map(conversion => {
+                const campanha = conversion.campanha || conversion.sub_id3 || 'N/A';
+                const conjunto = conversion.conjunto || conversion.sub_id4 || 'N/A';
+                const anuncio = conversion.anuncio || conversion.sub_id5 || 'N/A';
+                const status = conversion.status || 'N/A';
+                const payout = conversion.payout || 0;
+                const date = conversion.date || conversion.created_at;
 
                 return `
-                <tr class="hover:bg-gray-50 transition-colors">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${campanha}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${conjunto}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${anuncio}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">${getStatusBadge(status)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">${formatCurrencyUSD(payout)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatDate(item.date || item.created_at)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatTime(item.created_at)}</td>
-                </tr>
-                `;
-            }).join('');
-        }
-
-        // Função para mostrar alerta
-        function showAlert() {
-            const alert = document.getElementById('alert');
-            alert.classList.remove('hidden');
-            alert.classList.add('slide-down', 'pulse-green');
-            
-            setTimeout(() => {
-                alert.classList.add('hidden');
-                alert.classList.remove('pulse-green');
-            }, 5000);
-        }
-
-        // Função para carregar estatísticas de campanha
-        async function loadCampaignStats() {
-            try {
-                const response = await fetch('/api/campaign-stats');
-                allCampaignStats = await response.json();
-                updateCampaignStatsTable(allCampaignStats);
-            } catch (error) {
-                console.error('Erro ao carregar estatísticas:', error);
-            }
-        }
-
-        // Função para atualizar tabela de estatísticas
-        function updateCampaignStatsTable(stats) {
-            const tbody = document.getElementById('campaignStatsTable');
-            
-            if (stats.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
-                            Nenhuma estatística disponível
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            tbody.innerHTML = stats.map(item => {
-                const totalLeads = (item.leads || 0) + (item.conversoes || 0) + (item.trash || 0) + (item.cancel || 0);
-                const conversionRate = totalLeads > 0 ? ((item.conversoes || 0) / totalLeads * 100).toFixed(1) : 0;
-                
-                return `
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 text-sm font-medium text-gray-900">${item.campanha || 'N/A'}</td>
-                        <td class="px-6 py-4 text-sm text-gray-900">${item.leads || 0}</td>
-                        <td class="px-6 py-4 text-sm text-gray-900">${item.conversoes || 0}</td>
-                        <td class="px-6 py-4 text-sm text-gray-900">${item.trash || 0}</td>
-                        <td class="px-6 py-4 text-sm text-gray-900">${item.cancel || 0}</td>
-                        <td class="px-6 py-4 text-sm font-semibold ${conversionRate >= 10 ? 'text-green-600' : conversionRate >= 5 ? 'text-yellow-600' : 'text-red-600'}">
-                            ${conversionRate}%
-                        </td>
-                        <td class="px-6 py-4 text-sm font-semibold text-green-600">${formatCurrencyUSD(0)}</td>
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${campanha}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${conjunto}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${anuncio}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">${getStatusBadge(status)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">${formatCurrencyUSD(payout)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${new Date(date).toLocaleDateString('pt-BR')}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(date).toLocaleTimeString('pt-BR')}</td>
                     </tr>
                 `;
             }).join('');
         }
 
-        // Função para inicializar gráficos
-        function initCharts() {
-            const conversionsCtx = document.getElementById('conversionsChart').getContext('2d');
-            const statusCtx = document.getElementById('statusChart').getContext('2d');
-            
-            // Gráfico de conversões por hora
-            conversionsChart = new Chart(conversionsCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Conversões por Hora',
-                        data: [],
-                        borderColor: 'rgb(59, 130, 246)',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
-            
-            // Gráfico de distribuição por status
-            statusChart = new Chart(statusCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['FTD', 'DEPOSIT', 'PENDING', 'REJECTED', 'OUTROS'],
-                    datasets: [{
-                        data: [0, 0, 0, 0, 0],
-                        backgroundColor: [
-                            'rgb(34, 197, 94)',
-                            'rgb(59, 130, 246)',
-                            'rgb(234, 179, 8)',
-                            'rgb(239, 68, 68)',
-                            'rgb(156, 163, 175)'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
-                    }
-                }
-            });
-        }
-
-        // Função para atualizar gráficos
-        function updateCharts(conversions) {
-            if (!conversionsChart || !statusChart) return;
-            
-            // Atualizar gráfico de status
-            const statusCount = {
-                'FTD': 0, 'DEPOSIT': 0, 'PENDING': 0, 'REJECTED': 0, 'OUTROS': 0
-            };
-            
-            conversions.forEach(item => {
-                const status = item.status || 'PENDING';
-                if (statusCount.hasOwnProperty(status)) {
-                    statusCount[status]++;
-                } else {
-                    statusCount['OUTROS']++;
-                }
-            });
-            
-            statusChart.data.datasets[0].data = [
-                statusCount['FTD'],
-                statusCount['DEPOSIT'],
-                statusCount['PENDING'],
-                statusCount['REJECTED'],
-                statusCount['OUTROS']
-            ];
-            statusChart.update();
-            
-            // Atualizar gráfico de conversões por hora (últimas 12 horas)
-            const last12Hours = getLast12HoursData(conversions);
-            conversionsChart.data.labels = last12Hours.labels;
-            conversionsChart.data.datasets[0].data = last12Hours.data;
-            conversionsChart.update();
-        }
-
-        // Função para obter dados das últimas 12 horas
-        function getLast12HoursData(conversions) {
-            const now = new Date();
-            const hours = [];
-            const data = [];
-            
-            for (let i = 11; i >= 0; i--) {
-                const hour = new Date(now);
-                hour.setHours(now.getHours() - i);
-                hour.setMinutes(0, 0, 0);
-                
-                const hourStart = new Date(hour);
-                const hourEnd = new Date(hour);
-                hourEnd.setHours(hour.getHours() + 1);
-                
-                const hourConversions = conversions.filter(item => {
-                    const itemDate = new Date(item.created_at);
-                    return itemDate >= hourStart && itemDate < hourEnd;
-                });
-                
-                hours.push(hour.getHours().toString().padStart(2, '0') + 'h');
-                data.push(hourConversions.length);
-            }
-            
-            return { labels: hours, data: data };
-        }
-
-        // Função para aplicar filtros
-        function applyFilters() {
-            let filtered = [...allConversions];
-            
-            // Filtro de data
-            const dateFilter = document.getElementById('dateFilter').value;
-            if (dateFilter !== 'all') {
-                filtered = filterByDate(filtered, dateFilter);
-            }
-            
-            // Filtro de campanha
-            const campaignFilter = document.getElementById('campaignFilter').value;
-            if (campaignFilter !== 'all') {
-                filtered = filtered.filter(item => {
-                    const campanha = item.campanha || item.sub_id3;
-                    return campanha === campaignFilter;
-                });
-            }
-            
-            // Filtro de status
-            const statusFilter = document.getElementById('statusFilter').value;
-            if (statusFilter !== 'all') {
-                filtered = filtered.filter(item => item.status === statusFilter);
-            }
-            
-            // Filtro de busca
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            if (searchTerm) {
-                filtered = filtered.filter(item => {
-                    const campanha = (item.campanha || item.sub_id3 || '').toLowerCase();
-                    const conjunto = (item.conjunto || item.sub_id4 || '').toLowerCase();
-                    const anuncio = (item.anuncio || item.sub_id5 || '').toLowerCase();
-                    const status = (item.status || '').toLowerCase();
-                    
-                    return campanha.includes(searchTerm) ||
-                           conjunto.includes(searchTerm) ||
-                           anuncio.includes(searchTerm) ||
-                           status.includes(searchTerm);
-                });
-            }
-            
-            updateTable(filtered);
-            updateStatistics(filtered);
-            updateCharts(filtered);
-        }
-
-        // Função para filtrar por data
-        function filterByDate(data, period) {
-            const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            
-            switch (period) {
-                case 'today':
-                    return data.filter(item => new Date(item.created_at) >= today);
-                case 'yesterday':
-                    const yesterday = new Date(today);
-                    yesterday.setDate(yesterday.getDate() - 1);
-                    return data.filter(item => {
-                        const itemDate = new Date(item.created_at);
-                        return itemDate >= yesterday && itemDate < today;
-                    });
-                case 'week':
-                    const weekAgo = new Date(today);
-                    weekAgo.setDate(weekAgo.getDate() - 7);
-                    return data.filter(item => new Date(item.created_at) >= weekAgo);
-                case 'month':
-                    const monthAgo = new Date(today);
-                    monthAgo.setMonth(monthAgo.getMonth() - 1);
-                    return data.filter(item => new Date(item.created_at) >= monthAgo);
-                default:
-                    return data;
-            }
-        }
-
-        // Função para atualizar opções dos filtros
-        function updateFilters(conversions) {
-            const campaignSelect = document.getElementById('campaignFilter');
-            const campaigns = [...new Set(conversions.map(item => {
-                const campanha = item.campanha || item.sub_id3;
-                return campanha && !campanha.includes('[[') ? campanha : null;
-            }).filter(Boolean))];
-            
-            // Manter a seleção atual
-            const currentSelection = campaignSelect.value;
-            
-            // Atualizar opções
-            campaignSelect.innerHTML = '<option value="all">Todas as campanhas</option>';
-            campaigns.forEach(campaign => {
-                campaignSelect.innerHTML += `<option value="${campaign}">${campaign}</option>`;
-            });
-            
-            // Restaurar seleção se ainda existir
-            if (campaigns.includes(currentSelection)) {
-                campaignSelect.value = currentSelection;
-            }
-        }
-
-        // Inicializar tudo quando a página carregar
+        // Inicializar quando a página carregar
         document.addEventListener('DOMContentLoaded', function() {
-            initCharts();
             loadConversions();
-            loadCampaignStats();
             
-            // Adicionar event listeners aos filtros
-            document.getElementById('dateFilter').addEventListener('change', applyFilters);
-            document.getElementById('campaignFilter').addEventListener('change', applyFilters);
-            document.getElementById('statusFilter').addEventListener('change', applyFilters);
-            document.getElementById('searchInput').addEventListener('input', applyFilters);
-            
-            // Atualizar dados a cada 10 segundos
+            // Event listeners
+            document.getElementById('expandAll').addEventListener('click', expandAll);
+            document.getElementById('collapseAll').addEventListener('click', collapseAll);
+            document.getElementById('toggleDetails').addEventListener('click', function() {
+                const detailsSection = document.getElementById('detailsSection');
+                const isHidden = detailsSection.classList.contains('hidden');
+                
+                if (isHidden) {
+                    detailsSection.classList.remove('hidden');
+                    this.textContent = 'Ocultar Detalhes';
+                } else {
+                    detailsSection.classList.add('hidden');
+                    this.textContent = 'Mostrar Detalhes';
+                }
+            });
+
+            // Busca em tempo real
+            document.getElementById('searchInput').addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                // Implementar filtro de busca se necessário
+            });
+
+            // Atualizar a cada 10 segundos
             setInterval(loadConversions, 10000);
-            setInterval(loadCampaignStats, 30000);
         });
     </script>
 </body>
