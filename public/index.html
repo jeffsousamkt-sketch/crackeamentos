@@ -73,7 +73,7 @@
         <!-- Header -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">📊 Dashboard LeadRock</h1>
-            <p class="text-gray-600">Visualização hierárquica de campanhas, conjuntos e anúncios</p>
+            <p class="text-gray-600">Estatísticas por status e visão hierárquica</p>
         </div>
 
         <!-- Alerta de novo postback -->
@@ -86,19 +86,39 @@
             </div>
         </div>
 
-        <!-- Estatísticas Gerais -->
+        <!-- Estatísticas por STATUS -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+                <div class="text-gray-600 text-sm font-medium mb-1">LEADS</div>
+                <div class="text-2xl font-bold text-blue-600" id="totalLeads">0</div>
+                <div class="text-xs text-gray-500 mt-1">Status: hold/pending</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+                <div class="text-gray-600 text-sm font-medium mb-1">APROVADOS</div>
+                <div class="text-2xl font-bold text-green-600" id="totalApproved">0</div>
+                <div class="text-xs text-gray-500 mt-1">Status: confirm/FTD</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
+                <div class="text-gray-600 text-sm font-medium mb-1">CANCEL</div>
+                <div class="text-2xl font-bold text-red-600" id="totalCancel">0</div>
+                <div class="text-xs text-gray-500 mt-1">Status: cancel/rejection</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-gray-500">
+                <div class="text-gray-600 text-sm font-medium mb-1">TRASH</div>
+                <div class="text-2xl font-bold text-gray-600" id="totalTrash">0</div>
+                <div class="text-xs text-gray-500 mt-1">Status: trash</div>
+            </div>
+        </div>
+
+        <!-- Estatísticas Gerais -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="text-gray-600 text-sm font-medium mb-1">Total de Campanhas</div>
-                <div class="text-2xl font-bold text-blue-600" id="totalCampaigns">0</div>
+                <div class="text-2xl font-bold text-purple-600" id="totalCampaigns">0</div>
             </div>
             <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="text-gray-600 text-sm font-medium mb-1">Total de Leads</div>
-                <div class="text-2xl font-bold text-green-600" id="totalLeads">0</div>
-            </div>
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="text-gray-600 text-sm font-medium mb-1">Conversões</div>
-                <div class="text-2xl font-bold text-purple-600" id="totalConversions">0</div>
+                <div class="text-gray-600 text-sm font-medium mb-1">Total de Conversões</div>
+                <div class="text-2xl font-bold text-green-600" id="totalConversions">0</div>
             </div>
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="text-gray-600 text-sm font-medium mb-1">Valor Total</div>
@@ -136,15 +156,16 @@
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campanha / Conjunto / Anúncio</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leads</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conversões</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Taxa</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aprovados</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cancel</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trash</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor Total</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         </tr>
                     </thead>
                     <tbody id="hierarchicalTable" class="bg-white divide-y divide-gray-200">
                         <tr>
-                            <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                            <td colspan="7" class="px-6 py-8 text-center text-gray-500">
                                 <div class="flex flex-col items-center">
                                     <div class="loading-spinner"></div>
                                     <p class="mt-2">Carregando dados hierárquicos...</p>
@@ -209,48 +230,70 @@
             }).format(value);
         }
 
-        // Função para calcular taxa de conversão
-        function calculateConversionRate(leads, conversions) {
-            if (!leads || leads === 0) return '0%';
-            const rate = (conversions / leads) * 100;
-            return rate.toFixed(1) + '%';
-        }
-
         // Função para obter badge de status
         function getStatusBadge(status) {
             const badges = {
+                'hold': 'bg-yellow-100 text-yellow-800',
+                'pending': 'bg-yellow-100 text-yellow-800',
+                'confirm': 'bg-green-100 text-green-800',
                 'FTD': 'bg-green-100 text-green-800',
-                'DEPOSIT': 'bg-blue-100 text-blue-800',
-                'PENDING': 'bg-yellow-100 text-yellow-800',
-                'REJECTED': 'bg-red-100 text-red-800',
-                'TRASH': 'bg-gray-100 text-gray-800',
-                'CANCEL': 'bg-red-100 text-red-800'
+                'DEPOSIT': 'bg-green-100 text-green-800',
+                'cancel': 'bg-red-100 text-red-800',
+                'rejection': 'bg-red-100 text-red-800',
+                'trash': 'bg-gray-100 text-gray-800'
             };
             const color = badges[status] || 'bg-gray-100 text-gray-800';
             return `<span class="px-2 py-1 rounded-full text-xs font-semibold ${color}">${status || 'N/A'}</span>`;
         }
 
+        // Função para classificar status da LeadRock
+        function classifyStatus(status) {
+            if (!status) return 'lead';
+            
+            const statusLower = status.toLowerCase();
+            
+            if (['confirm', 'ftd', 'deposit', 'approved'].includes(statusLower)) {
+                return 'approved';
+            } else if (['cancel', 'rejection', 'rejected'].includes(statusLower)) {
+                return 'cancel';
+            } else if (['trash'].includes(statusLower)) {
+                return 'trash';
+            } else {
+                return 'lead'; // hold, pending, etc.
+            }
+        }
+
         // Função para processar dados hierárquicos
         function processHierarchicalData(conversions) {
             const hierarchy = {};
-            let totalLeads = 0;
-            let totalConversions = 0;
-            let totalPayout = 0;
+            let stats = {
+                leads: 0,
+                approved: 0,
+                cancel: 0,
+                trash: 0,
+                totalPayout: 0,
+                totalCampaigns: 0
+            };
 
             conversions.forEach(conversion => {
                 const campanha = conversion.campanha || conversion.sub_id3 || 'N/A';
                 const conjunto = conversion.conjunto || conversion.sub_id4 || 'N/A';
                 const anuncio = conversion.anuncio || conversion.sub_id5 || 'N/A';
-                const status = conversion.status || 'UNKNOWN';
+                const status = conversion.status || 'hold';
                 const payout = parseFloat(conversion.payout) || 0;
-                const isConversion = ['FTD', 'DEPOSIT', 'APPROVED'].includes(status);
-                const isLead = !['TRASH', 'CANCEL', 'REJECTED'].includes(status);
+                const statusType = classifyStatus(status);
+
+                // Atualizar estatísticas gerais
+                stats[statusType]++;
+                stats.totalPayout += payout;
 
                 // Inicializar campanha se não existir
                 if (!hierarchy[campanha]) {
                     hierarchy[campanha] = {
                         leads: 0,
-                        conversions: 0,
+                        approved: 0,
+                        cancel: 0,
+                        trash: 0,
                         payout: 0,
                         adsets: {}
                     };
@@ -260,7 +303,9 @@
                 if (!hierarchy[campanha].adsets[conjunto]) {
                     hierarchy[campanha].adsets[conjunto] = {
                         leads: 0,
-                        conversions: 0,
+                        approved: 0,
+                        cancel: 0,
+                        trash: 0,
                         payout: 0,
                         ads: {}
                     };
@@ -270,59 +315,56 @@
                 if (!hierarchy[campanha].adsets[conjunto].ads[anuncio]) {
                     hierarchy[campanha].adsets[conjunto].ads[anuncio] = {
                         leads: 0,
-                        conversions: 0,
+                        approved: 0,
+                        cancel: 0,
+                        trash: 0,
                         payout: 0,
-                        status: status
+                        lastStatus: status
                     };
                 }
 
-                // Atualizar contagens
-                if (isLead) {
-                    hierarchy[campanha].leads++;
-                    hierarchy[campanha].adsets[conjunto].leads++;
-                    hierarchy[campanha].adsets[conjunto].ads[anuncio].leads++;
-                    totalLeads++;
-                }
+                // Atualizar contagens por status
+                hierarchy[campanha][statusType]++;
+                hierarchy[campanha].adsets[conjunto][statusType]++;
+                hierarchy[campanha].adsets[conjunto].ads[anuncio][statusType]++;
 
-                if (isConversion) {
-                    hierarchy[campanha].conversions++;
-                    hierarchy[campanha].adsets[conjunto].conversions++;
-                    hierarchy[campanha].adsets[conjunto].ads[anuncio].conversions++;
-                    totalConversions++;
-                }
-
+                // Atualizar payout
                 hierarchy[campanha].payout += payout;
                 hierarchy[campanha].adsets[conjunto].payout += payout;
                 hierarchy[campanha].adsets[conjunto].ads[anuncio].payout += payout;
-                totalPayout += payout;
+
+                // Atualizar último status do anúncio
+                hierarchy[campanha].adsets[conjunto].ads[anuncio].lastStatus = status;
             });
+
+            stats.totalCampaigns = Object.keys(hierarchy).length;
 
             return {
                 hierarchy,
-                totals: {
-                    campaigns: Object.keys(hierarchy).length,
-                    leads: totalLeads,
-                    conversions: totalConversions,
-                    payout: totalPayout
-                }
+                stats
             };
         }
 
         // Função para renderizar tabela hierárquica
         function renderHierarchicalTable(data) {
             const tbody = document.getElementById('hierarchicalTable');
-            const { hierarchy, totals } = data;
+            const { hierarchy, stats } = data;
+
+            // Atualizar estatísticas por status
+            document.getElementById('totalLeads').textContent = stats.leads;
+            document.getElementById('totalApproved').textContent = stats.approved;
+            document.getElementById('totalCancel').textContent = stats.cancel;
+            document.getElementById('totalTrash').textContent = stats.trash;
 
             // Atualizar estatísticas gerais
-            document.getElementById('totalCampaigns').textContent = totals.campaigns;
-            document.getElementById('totalLeads').textContent = totals.leads.toLocaleString('pt-BR');
-            document.getElementById('totalConversions').textContent = totals.conversions.toLocaleString('pt-BR');
-            document.getElementById('totalPayout').textContent = formatCurrencyUSD(totals.payout);
+            document.getElementById('totalCampaigns').textContent = stats.totalCampaigns;
+            document.getElementById('totalConversions').textContent = stats.approved;
+            document.getElementById('totalPayout').textContent = formatCurrencyUSD(stats.totalPayout);
 
             if (Object.keys(hierarchy).length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
                             Nenhuma campanha encontrada
                         </td>
                     </tr>
@@ -349,10 +391,9 @@
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${campaign.leads}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${campaign.conversions}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${campaign.leads > 0 ? (campaign.conversions / campaign.leads * 100 >= 10 ? 'text-green-600' : 'text-yellow-600') : 'text-gray-600'}">
-                            ${calculateConversionRate(campaign.leads, campaign.conversions)}
-                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${campaign.approved}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${campaign.cancel}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${campaign.trash}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">${formatCurrencyUSD(campaign.payout)}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                             <span class="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">CAMPAIGN</span>
@@ -378,10 +419,9 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${adset.leads}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${adset.conversions}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${adset.leads > 0 ? (adset.conversions / adset.leads * 100 >= 10 ? 'text-green-600' : 'text-yellow-600') : 'text-gray-600'}">
-                                    ${calculateConversionRate(adset.leads, adset.conversions)}
-                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${adset.approved}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${adset.cancel}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${adset.trash}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">${formatCurrencyUSD(adset.payout)}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                                     <span class="px-2 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">ADSET</span>
@@ -400,13 +440,12 @@
                                             ${adName}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${ad.leads}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${ad.conversions}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold ${ad.leads > 0 ? (ad.conversions / ad.leads * 100 >= 10 ? 'text-green-600' : 'text-yellow-600') : 'text-gray-600'}">
-                                            ${calculateConversionRate(ad.leads, ad.conversions)}
-                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${ad.approved}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${ad.cancel}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${ad.trash}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">${formatCurrencyUSD(ad.payout)}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                            ${getStatusBadge(ad.status)}
+                                            ${getStatusBadge(ad.lastStatus)}
                                         </td>
                                     </tr>
                                 `;
@@ -524,12 +563,6 @@
                     detailsSection.classList.add('hidden');
                     this.textContent = 'Mostrar Detalhes';
                 }
-            });
-
-            // Busca em tempo real
-            document.getElementById('searchInput').addEventListener('input', function(e) {
-                const searchTerm = e.target.value.toLowerCase();
-                // Implementar filtro de busca se necessário
             });
 
             // Atualizar a cada 10 segundos
