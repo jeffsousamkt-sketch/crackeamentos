@@ -282,7 +282,8 @@ function processPostback(req, res, notificationType) {
   // Outros parâmetros
   const offer_id = allParams.offer_id || allParams.order_id || allParams.order || allParams.id || null;
   const status = allParams.status || allParams.state || null;
-  const payout = allParams.payout || allParams.amount || allParams.value || allParams.revenue || null;
+  // Priorizar 'price' que a LeadRock envia automaticamente da coluna Price
+  const payout = allParams.price || allParams.payout || allParams.amount || allParams.value || allParams.revenue || null;
   const date = allParams.date || allParams.timestamp || allParams.time || null;
 
   // Log COMPLETO de todos os parâmetros recebidos
@@ -309,6 +310,7 @@ function processPostback(req, res, notificationType) {
   console.log('    Campanha:', campanha || 'N/A');
   console.log('    Conjunto:', conjunto || 'N/A');
   console.log('    Anúncio:', anuncio || 'N/A');
+  console.log('    Price/Payout:', payout || 'N/A');
 
   // Verificar se banco está disponível
   if (!db) {
