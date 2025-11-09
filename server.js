@@ -107,6 +107,9 @@ try {
         sub_id6 TEXT,
         sub_id7 TEXT,
         sub_id8 TEXT,
+        campanha TEXT,
+        conjunto TEXT,
+        anuncio TEXT,
         offer_id TEXT,
         status TEXT,
         payout REAL,
@@ -120,6 +123,42 @@ try {
           console.error('❌ Erro ao criar tabela conversions:', err.message);
         } else {
           console.log('✅ Tabela conversions criada/verificada');
+          
+          // Adicionar colunas campanha, conjunto, anuncio se não existirem (migração)
+          db.all("PRAGMA table_info(conversions)", [], (err, columns) => {
+            if (err) {
+              console.error('❌ Erro ao verificar colunas:', err.message);
+              return;
+            }
+            
+            const columnNames = columns.map(col => col.name);
+            const columnsToAdd = [];
+            
+            if (!columnNames.includes('campanha')) {
+              columnsToAdd.push('campanha TEXT');
+            }
+            if (!columnNames.includes('conjunto')) {
+              columnsToAdd.push('conjunto TEXT');
+            }
+            if (!columnNames.includes('anuncio')) {
+              columnsToAdd.push('anuncio TEXT');
+            }
+            
+            if (columnsToAdd.length > 0) {
+              columnsToAdd.forEach(colDef => {
+                const colName = colDef.split(' ')[0];
+                db.run(`ALTER TABLE conversions ADD COLUMN ${colDef}`, (err) => {
+                  if (err) {
+                    console.error(`❌ Erro ao adicionar coluna ${colName}:`, err.message);
+                  } else {
+                    console.log(`✅ Coluna ${colName} adicionada com sucesso`);
+                  }
+                });
+              });
+            } else {
+              console.log('✅ Todas as colunas necessárias já existem');
+            }
+          });
         }
       });
 
@@ -278,8 +317,8 @@ function processPostback(req, res, notificationType) {
   }
 
   // Salvar no banco de dados
-  const sql = `INSERT INTO conversions (sub_id1, sub_id2, sub_id3, sub_id4, sub_id5, sub_id6, sub_id7, sub_id8, offer_id, status, payout, date, notification_type, utm_source, utm_medium) 
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  const sql = `INSERT INTO conversions (sub_id1, sub_id2, sub_id3, sub_id4, sub_id5, sub_id6, sub_id7, sub_id8, campanha, conjunto, anuncio, offer_id, status, payout, date, notification_type, utm_source, utm_medium) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
   
   db.run(sql, [
     sub1_value,     // sub_id1 = valor fixo (ex: Jeff-10x5962)
@@ -290,6 +329,9 @@ function processPostback(req, res, notificationType) {
     campaign_name,  // sub_id6 = campaign.name (do UTM ou sub3)
     placement,      // sub_id7 = placement
     pixel,          // sub_id8 = pixel ID
+    campanha,       // campanha = nome da campanha (mapeado)
+    conjunto,        // conjunto = nome do conjunto (mapeado)
+    anuncio,        // anuncio = nome do anúncio (mapeado)
     offer_id || null, 
     status || null, 
     payout ? parseFloat(payout) : null, 
