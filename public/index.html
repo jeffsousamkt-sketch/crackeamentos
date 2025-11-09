@@ -73,7 +73,7 @@
         <!-- Header -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">📊 Dashboard LeadRock</h1>
-            <p class="text-gray-600">Estatísticas por status e visão hierárquica</p>
+            <p class="text-gray-600">Estatísticas por status - Valor só para aprovados</p>
         </div>
 
         <!-- Alerta de novo postback -->
@@ -123,6 +123,7 @@
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="text-gray-600 text-sm font-medium mb-1">Valor Total</div>
                 <div class="text-2xl font-bold text-green-600" id="totalPayout">$0.00</div>
+                <div class="text-xs text-gray-500 mt-1">Apenas aprovados</div>
             </div>
         </div>
 
@@ -149,6 +150,7 @@
         <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
             <div class="px-6 py-4 border-b border-gray-200">
                 <h2 class="text-xl font-semibold text-gray-800">Visão Hierárquica por Campanha</h2>
+                <p class="text-sm text-gray-600 mt-1">💡 Valor só é contabilizado para status APROVADOS</p>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -238,8 +240,10 @@
                 'confirm': 'bg-green-100 text-green-800',
                 'FTD': 'bg-green-100 text-green-800',
                 'DEPOSIT': 'bg-green-100 text-green-800',
+                'approved': 'bg-green-100 text-green-800',
                 'cancel': 'bg-red-100 text-red-800',
                 'rejection': 'bg-red-100 text-red-800',
+                'rejected': 'bg-red-100 text-red-800',
                 'trash': 'bg-gray-100 text-gray-800'
             };
             const color = badges[status] || 'bg-gray-100 text-gray-800';
@@ -252,18 +256,25 @@
             
             const statusLower = status.toLowerCase();
             
-            if (['confirm', 'ftd', 'deposit', 'approved'].includes(statusLower)) {
+            // ✅ STATUS APROVADOS (que contam valor)
+            if (['confirm', 'ftd', 'deposit', 'approved', 'conversao'].includes(statusLower)) {
                 return 'approved';
-            } else if (['cancel', 'rejection', 'rejected'].includes(statusLower)) {
+            } 
+            // ❌ STATUS CANCELADOS (não contam valor)
+            else if (['cancel', 'rejection', 'rejected'].includes(statusLower)) {
                 return 'cancel';
-            } else if (['trash'].includes(statusLower)) {
+            } 
+            // 🗑️ STATUS TRASH (não contam valor)
+            else if (['trash'].includes(statusLower)) {
                 return 'trash';
-            } else {
+            } 
+            // ⏳ STATUS LEADS/PENDENTES (não contam valor)
+            else {
                 return 'lead'; // hold, pending, etc.
             }
         }
 
-        // Função para processar dados hierárquicos
+        // Função para processar dados hierárquicos - VALOR SÓ PARA APROVADOS
         function processHierarchicalData(conversions) {
             const hierarchy = {};
             let stats = {
@@ -283,9 +294,12 @@
                 const payout = parseFloat(conversion.payout) || 0;
                 const statusType = classifyStatus(status);
 
+                // ✅ SÓ ADICIONA VALOR SE FOR STATUS APROVADO
+                const validPayout = (statusType === 'approved') ? payout : 0;
+
                 // Atualizar estatísticas gerais
                 stats[statusType]++;
-                stats.totalPayout += payout;
+                stats.totalPayout += validPayout; // ✅ Só soma valor se for aprovado
 
                 // Inicializar campanha se não existir
                 if (!hierarchy[campanha]) {
@@ -294,7 +308,7 @@
                         approved: 0,
                         cancel: 0,
                         trash: 0,
-                        payout: 0,
+                        payout: 0, // ✅ Só valor de aprovados
                         adsets: {}
                     };
                 }
@@ -306,7 +320,7 @@
                         approved: 0,
                         cancel: 0,
                         trash: 0,
-                        payout: 0,
+                        payout: 0, // ✅ Só valor de aprovados
                         ads: {}
                     };
                 }
@@ -318,7 +332,7 @@
                         approved: 0,
                         cancel: 0,
                         trash: 0,
-                        payout: 0,
+                        payout: 0, // ✅ Só valor de aprovados
                         lastStatus: status
                     };
                 }
@@ -328,10 +342,12 @@
                 hierarchy[campanha].adsets[conjunto][statusType]++;
                 hierarchy[campanha].adsets[conjunto].ads[anuncio][statusType]++;
 
-                // Atualizar payout
-                hierarchy[campanha].payout += payout;
-                hierarchy[campanha].adsets[conjunto].payout += payout;
-                hierarchy[campanha].adsets[conjunto].ads[anuncio].payout += payout;
+                // ✅ ATUALIZAR PAYOUT SÓ SE FOR STATUS APROVADO
+                if (statusType === 'approved') {
+                    hierarchy[campanha].payout += validPayout;
+                    hierarchy[campanha].adsets[conjunto].payout += validPayout;
+                    hierarchy[campanha].adsets[conjunto].ads[anuncio].payout += validPayout;
+                }
 
                 // Atualizar último status do anúncio
                 hierarchy[campanha].adsets[conjunto].ads[anuncio].lastStatus = status;
@@ -379,6 +395,12 @@
                 const campaignId = `campaign-${campaignName.replace(/\s+/g, '-')}`;
                 const isExpanded = expandedItems.has(campaignId);
 
+                // Determinar status principal da campanha
+                let campaignMainStatus = 'hold';
+                if (campaign.approved > 0) campaignMainStatus = 'confirm';
+                else if (campaign.cancel > 0) campaignMainStatus = 'cancel';
+                else if (campaign.trash > 0) campaignMainStatus = 'trash';
+
                 // Linha da campanha
                 html += `
                     <tr class="campaign-row tree-item">
@@ -396,7 +418,7 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${campaign.trash}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">${formatCurrencyUSD(campaign.payout)}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
-                            <span class="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">CAMPAIGN</span>
+                            ${getStatusBadge(campaignMainStatus)}
                         </td>
                     </tr>
                 `;
@@ -407,6 +429,12 @@
                         const adset = campaign.adsets[adsetName];
                         const adsetId = `${campaignId}-adset-${adsetName.replace(/\s+/g, '-')}`;
                         const isAdsetExpanded = expandedItems.has(adsetId);
+
+                        // Determinar status principal do conjunto
+                        let adsetMainStatus = 'hold';
+                        if (adset.approved > 0) adsetMainStatus = 'confirm';
+                        else if (adset.cancel > 0) adsetMainStatus = 'cancel';
+                        else if (adset.trash > 0) adsetMainStatus = 'trash';
 
                         html += `
                             <tr class="adset-row tree-item">
@@ -424,7 +452,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${adset.trash}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">${formatCurrencyUSD(adset.payout)}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                    <span class="px-2 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">ADSET</span>
+                                    ${getStatusBadge(adsetMainStatus)}
                                 </td>
                             </tr>
                         `;
@@ -433,6 +461,12 @@
                         if (isAdsetExpanded) {
                             Object.keys(adset.ads).forEach(adName => {
                                 const ad = adset.ads[adName];
+
+                                // Determinar status principal do anúncio
+                                let adMainStatus = 'hold';
+                                if (ad.approved > 0) adMainStatus = 'confirm';
+                                else if (ad.cancel > 0) adMainStatus = 'cancel';
+                                else if (ad.trash > 0) adMainStatus = 'trash';
 
                                 html += `
                                     <tr class="ad-row tree-item">
@@ -445,7 +479,7 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${ad.trash}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">${formatCurrencyUSD(ad.payout)}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                            ${getStatusBadge(ad.lastStatus)}
+                                            ${getStatusBadge(adMainStatus)}
                                         </td>
                                     </tr>
                                 `;
